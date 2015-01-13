@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+
+<configuration>
+	<!-- Hive Execution Parameters -->
+	<property>
+		<name>hadoop.tmp.dir</name>
+		<value>${target.tmp}/hadoop-tmp</value>
+		<description>A base for other temporary directories.</description>
+	</property>
+
+	<property>
+		<name>hive.exec.scratchdir</name>
+		<value>${target.tmp}/scratchdir</value>
+		<description>Scratch space for Hive jobs</description>
+	</property>
+
+	<property>
+		<name>hive.exec.local.scratchdir</name>
+		<value>${target.tmp}/localscratchdir/</value>
+		<description>Local scratch space for Hive jobs</description>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionURL</name>
+		<value>jdbc:derby:;databaseName=${target.tmp}/metastore_db;create=true
+		</value>
+	</property>
+
+
+	<property>
+		<name>javax.jdo.option.ConnectionDriverName</name>
+		<value>org.apache.derby.jdbc.EmbeddedDriver</value>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionUserName</name>
+		<value>APP</value>
+	</property>
+
+	<property>
+		<name>javax.jdo.option.ConnectionPassword</name>
+		<value>mine</value>
+	</property>
+
+	<property>
+		<name>hive.metastore.warehouse.dir</name>
+		<value>${target.tmp}/warehouse</value>
+		<description></description>
+	</property>
+	
+	<property>
+		<name>hcatalog.hive.client.cache.disabled</name>
+		<value>true</value>
+	</property>
+
+</configuration>

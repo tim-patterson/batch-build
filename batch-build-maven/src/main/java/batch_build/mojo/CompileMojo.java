@@ -138,6 +138,7 @@ public class CompileMojo extends AbstractMojo {
 		
 		//System.setProperty("hadoop.bin.path","");
 		System.setProperty("target.tmp", tmpDir.getAbsolutePath());
+		System.setProperty("pig.temp.dir", tmpDir.getAbsolutePath());
 		System.setProperty("derby.stream.error.file", tmpDir.getAbsolutePath()
 				+ "/derby.log");
 

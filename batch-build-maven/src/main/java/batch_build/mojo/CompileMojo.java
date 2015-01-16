@@ -2,13 +2,14 @@ package batch_build.mojo;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -54,6 +55,7 @@ import batch_build.mojo.resources.FileLocationResource;
 import batch_build.mojo.resources.HCatResource;
 import batch_build.mojo.resources.HCatResource.HCatColumn;
 import batch_build.mojo.resources.Resource;
+import batch_build.mojo.tasks.HiveTask;
 import batch_build.mojo.tasks.LinkedTask;
 import batch_build.mojo.tasks.PigTask;
 import batch_build.mojo.tasks.Task;
@@ -152,6 +154,7 @@ public class CompileMojo extends AbstractMojo {
 		System.setProperty("pig.temp.dir", tmpDir.getAbsolutePath());
 		System.setProperty("derby.stream.error.file", tmpDir.getAbsolutePath()
 				+ "/derby.log");
+		System.setProperty("hive.semantic.analyzer.hook", HiveExplainHook.class.getName());
 
 		File hadoopHome = new File(tmpDir, "hadoop");
 		File hadoopBin = new File(hadoopHome, "bin");
@@ -225,13 +228,27 @@ public class CompileMojo extends AbstractMojo {
 				String taskName = tasksDir.toPath().relativize(file.toPath()).toString();
 				if (file.getName().endsWith(".pig")){
 					tasks.add(explainPigTask(taskName, file));
+				}else if (file.getName().endsWith(".hql")){
+					tasks.add(explainHiveTask(taskName, file));
 				}
 			}
 		}
 	}
 
+	private HiveTask explainHiveTask(String taskName, File hiveScript) throws FileNotFoundException, IOException{
+		System.out.println("Explaining " + taskName);
+		SessionState.start(createNewSessionState());
+		CliDriver hiveCli = new CliDriver();
+		HiveExplainHook.reset();
+		if (hiveCli.processReader(new BufferedReader(new FileReader(hiveScript))) !=0){
+			throw new RuntimeException("Failed to explain hive query");
+		}
+		
+		return new HiveTask(taskName, HiveExplainHook.getSources(), HiveExplainHook.getSinks());
+	}
+	
 	private PigTask explainPigTask(String taskName, File pigScript) throws Throwable {
-		System.out.println("Explaining " + pigScript.toString());
+		System.out.println("Explaining " + taskName);
 		PigServer pig = new PigServer(ExecType.LOCAL);
 		try {
 			pig.registerQuery(FileUtils.readFileToString(pigScript));
@@ -293,6 +310,9 @@ public class CompileMojo extends AbstractMojo {
 	 * tasks that read resources should depend on tasks before them that write into the resource
 	 */
 	private List<LinkedTask> optimizeDeps(List<Task> tasks){
+		for (Task t : tasks){
+			System.out.println(t);
+		}
 		List<LinkedTask> linkedTasks = new ArrayList<>();
 		// Tracking of resource -> reads and writes
 		Map<String, Set<LinkedTask>> upstreamReads = new HashMap<>();
@@ -352,12 +372,9 @@ public class CompileMojo extends AbstractMojo {
 				
 			}
 		}
-		for (LinkedTask t : linkedTasks){
-			System.out.println(t);
-			System.out.println("\t" + t.parents + "\n");
-		}
 		return linkedTasks;
 	}
+	
 
 	private static CliSessionState createNewSessionState() {
 		CliSessionState ss = new CliSessionState(new HiveConf(

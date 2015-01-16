@@ -8,6 +8,7 @@ import java.io.InputStreamReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -74,6 +75,7 @@ public class CompileMojo extends AbstractMojo {
 	
 	private Map<String, Resource> resources;
 	private List<Task> tasks;
+	private List<LinkedTask> linkedTasks;
 
 	public void execute() throws MojoExecutionException {
 		try {
@@ -82,7 +84,7 @@ public class CompileMojo extends AbstractMojo {
 			setupHadoop(tmpDir);
 			resources.putAll(resourcesToMap(createHiveTables()));
 			parseTasks(tasksDir);
-			optimizeDeps(tasks);
+			linkedTasks = optimizeDeps(tasks);
 			generateReports();
 		} catch (Throwable e) {
 			throw new MojoExecutionException("Problem running mojo", e);
@@ -96,7 +98,9 @@ public class CompileMojo extends AbstractMojo {
 		ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
 		ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
 		ve.setProperty("runtime.log.logsystem.class", "org.apache.velocity.runtime.log.NullLogSystem");
-		Template template = ve.getTemplate("templates/tableDoc.vm");
+		
+		// Tables
+		Template tableTemplate = ve.getTemplate("templates/tableDoc.vm");
 		for (Resource r : resources.values()){
 			if (r instanceof HCatResource){
 				HCatResource resource = (HCatResource) r;
@@ -104,10 +108,18 @@ public class CompileMojo extends AbstractMojo {
 				VelocityContext context = new VelocityContext();
 				context.put("table", r);
 				FileWriter writer = new FileWriter(new File(reportDir, fileName));
-				template.merge(context, writer);
+				tableTemplate.merge(context, writer);
 				writer.close();
 			}
 		}
+		
+		// Tasks
+		Template graphTemplate = ve.getTemplate("templates/taskGraph.vm");
+		VelocityContext context = new VelocityContext();
+		context.put("tasks", linkedTasks);
+		FileWriter writer = new FileWriter(new File(reportDir, "tasks.html"));
+		graphTemplate.merge(context, writer);
+		writer.close();
 	}
 
 
@@ -210,14 +222,15 @@ public class CompileMojo extends AbstractMojo {
 			if (file.isDirectory()){
 				parseTasks(file);
 			} else if (file.isFile()){
+				String taskName = tasksDir.toPath().relativize(file.toPath()).toString();
 				if (file.getName().endsWith(".pig")){
-					tasks.add(explainPigTask(file));
+					tasks.add(explainPigTask(taskName, file));
 				}
 			}
 		}
 	}
 
-	private PigTask explainPigTask(File pigScript) throws Throwable {
+	private PigTask explainPigTask(String taskName, File pigScript) throws Throwable {
 		System.out.println("Explaining " + pigScript.toString());
 		PigServer pig = new PigServer(ExecType.LOCAL);
 		try {
@@ -266,8 +279,8 @@ public class CompileMojo extends AbstractMojo {
 				}
 				assert resources.containsKey(resourceId);
 				sourceResources.add(resourceId);
-			}
-			return new PigTask(pigScript.getPath(), sourceResources,
+			}			
+			return new PigTask(taskName, sourceResources,
 					destResources);
 		} finally {
 			pig.shutdown();

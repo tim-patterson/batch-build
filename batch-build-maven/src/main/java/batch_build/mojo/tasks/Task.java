@@ -18,4 +18,8 @@ public abstract class Task {
 	public String toString(){
 		return name;
 	}
+	
+	public String getName(){
+		return name;
+	}
 }

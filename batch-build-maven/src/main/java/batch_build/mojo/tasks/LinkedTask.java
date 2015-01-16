@@ -32,4 +32,12 @@ public class LinkedTask {
 	public String toString(){
 		return task.toString();
 	}
+	
+	public Set<LinkedTask> getParents(){
+		return parents;
+	}
+	
+	public Task getTask(){
+		return task;
+	}
 }

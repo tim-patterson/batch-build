@@ -1,0 +1,17 @@
+<html>
+  <head>
+    <title>Tasks</title>
+    <script type="text/javascript" src="https://cdn.rawgit.com/knsv/mermaid/0.3.2/dist/mermaid.full.js"></script>
+  </head>
+  <body>
+    <div class="mermaid">
+    graph LR
+    #foreach( $task in $tasks )
+    ${tasks.indexOf($task)}[<a href="#">$task.task.name</a>]
+    #foreach( $parentTask in $task.parents )
+    ${tasks.indexOf($parentTask)} --> ${tasks.indexOf($task)}
+    #end
+    #end
+    </div>
+  </body>
+</html>

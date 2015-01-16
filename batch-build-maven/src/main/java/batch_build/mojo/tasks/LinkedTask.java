@@ -10,4 +10,26 @@ public class LinkedTask {
 	public LinkedTask(Task task){
 		this.task = task;
 	}
+	
+	/**
+	 * Returns true if the task is this or any of its parent
+	 * tasks
+	 * @param task
+	 * @return
+	 */
+	public boolean isDependentOn(LinkedTask task){
+		if (this.equals(task)){
+			return true;
+		}
+		for (LinkedTask parentTask : parents){
+			if (parentTask.isDependentOn(task)){
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	public String toString(){
+		return task.toString();
+	}
 }

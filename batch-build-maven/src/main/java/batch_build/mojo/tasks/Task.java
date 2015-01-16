@@ -14,4 +14,8 @@ public abstract class Task {
 		this.sourceResources = Collections.unmodifiableSet(sourceResources);
 		this.sinkResources = Collections.unmodifiableSet(sinkResources);
 	}
+	
+	public String toString(){
+		return name;
+	}
 }

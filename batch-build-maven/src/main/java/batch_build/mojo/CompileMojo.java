@@ -5,7 +5,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -14,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,16 +46,13 @@ import org.apache.thrift.TException;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
-import org.apache.velocity.exception.MethodInvocationException;
-import org.apache.velocity.exception.ParseErrorException;
-import org.apache.velocity.exception.ResourceNotFoundException;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
 import batch_build.mojo.resources.FileLocationResource;
 import batch_build.mojo.resources.HCatResource;
-import batch_build.mojo.resources.Resource;
 import batch_build.mojo.resources.HCatResource.HCatColumn;
+import batch_build.mojo.resources.Resource;
 import batch_build.mojo.tasks.LinkedTask;
 import batch_build.mojo.tasks.PigTask;
 import batch_build.mojo.tasks.Task;
@@ -85,6 +82,7 @@ public class CompileMojo extends AbstractMojo {
 			setupHadoop(tmpDir);
 			resources.putAll(resourcesToMap(createHiveTables()));
 			parseTasks(tasksDir);
+			optimizeDeps(tasks);
 			generateReports();
 		} catch (Throwable e) {
 			throw new MojoExecutionException("Problem running mojo", e);
@@ -213,7 +211,7 @@ public class CompileMojo extends AbstractMojo {
 				parseTasks(file);
 			} else if (file.isFile()){
 				if (file.getName().endsWith(".pig")){
-					explainPigTask(file);
+					tasks.add(explainPigTask(file));
 				}
 			}
 		}
@@ -319,11 +317,31 @@ public class CompileMojo extends AbstractMojo {
 				upstreamWrites.put(resource, lTask);
 				upstreamReads.get(resource).clear();
 			}
+			linkedTasks.add(lTask);
 		}
 		
-		// TODO second pass requires removing redundant deps
+		// second pass requires removing redundant deps
 		// We can achieve this by testing each dep to see if we can reach it from other dep
-		for (Task task : tasks){
+		for (LinkedTask task : linkedTasks){
+			Iterator<LinkedTask> deps = task.parents.iterator();
+			deploop: while (deps.hasNext()){
+				LinkedTask dep = deps.next();
+				// Take a copy to prevent concurrent modification exceptions etc
+				for (LinkedTask t : new ArrayList<>(task.parents)){
+					if (t == dep){
+						continue;
+					}
+					if (t.isDependentOn(dep)){
+						deps.remove();
+						continue deploop;
+					}
+				}
+				
+			}
+		}
+		for (LinkedTask t : linkedTasks){
+			System.out.println(t);
+			System.out.println("\t" + t.parents + "\n");
 		}
 		return linkedTasks;
 	}

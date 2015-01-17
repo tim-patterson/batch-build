@@ -1,22 +1,44 @@
+<!DOCTYPE html>
 <html>
   <head>
+    #parse("templates/headCommon.vm")
     <title>$table.dbName $table.tableName</title>
-    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/pure-min.css">
   </head>
   <body>
-    <h2>${table.dbName}.${table.tableName}</h2>
-    $table.description
-    </br>
-    </br>
-    <table class="pure-table">
-      <thead>
-        <tr><td>Name</td><td>Type</td><td>Description</td></tr>
-      </thead>
-      <tbody>
-      #foreach( $column in $table.columns )
-        <tr><td>$column.name</td><td>$column.type</td><td>$column.description</td></tr>
-      #end
-      </tbody>
-    </table>
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-5 col-md-3 sidebar">
+          #parse("templates/navBar.vm")
+        </div>
+        <div class="col-sm-7 col-sm-offset-5 col-md-9 col-md-offset-3 main">
+          <h1 class="page-header">HCat Table - ${table.dbName}.${table.tableName}</h1>
+          <h3>description</h3>
+          <p>$table.description</p>
+          <h3>columns</h3>
+          <table class="table table-bordered table-hover">
+            <thead>
+              <tr><td>Name</td><td>Type</td><td>Description</td></tr>
+            </thead>
+            <tbody>
+              #foreach( $column in $table.columns )
+              <tr #if($column.isPartitionKey())class="info" #end><td>$column.name</td><td>$column.type</td><td>$column.description</td></tr>
+              #end
+            </tbody>
+          </table>
+          <h3>usage</h3>
+            <ul>
+              #foreach( $task in $writeUsages )
+              <li><a href="">$task.name</a> (write)</li>
+              #end
+            </ul>
+            <ul>
+              #foreach( $task in $readUsages )
+              <li><a href="">$task.name</a> (read)</li>
+              #end
+            </ul>
+        </div>
+      </div>
+    </div>
   </body>
 </html>
+

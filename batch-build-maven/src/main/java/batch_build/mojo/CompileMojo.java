@@ -51,6 +51,11 @@ import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Multimap;
+import com.google.common.collect.Multimaps;
+
 import batch_build.mojo.resources.FileLocationResource;
 import batch_build.mojo.resources.HCatResource;
 import batch_build.mojo.resources.HCatResource.HCatColumn;
@@ -108,17 +113,32 @@ public class CompileMojo extends AbstractMojo {
 		}
 		
 		// create tree structure for tables
-		TreeNode<String> tablesRoot = new TreeNode<String>(null, "Tables");
+		TreeNode<String> tablesRoot = new TreeNode<String>(null, "HCat Tables");
 		for (Resource r : resources.values()){
 			if (r instanceof HCatResource){
 				HCatResource table = (HCatResource) r;
 				TreeNode<String> dbNode = tablesRoot.getOrCreateChild(table.dbName);
-				dbNode.addChild(new TreeNode<>(table.toString(), table.tableName));
+				dbNode.addChild(new TreeNode<>("tables/" + table.dbName + "." + table.tableName + ".html", table.tableName));
 			}
 		}
 		tablesRoot.sortChildren(true);
 		
+		Multimap<String, Task> readUsage = ArrayListMultimap.create();
+		Multimap<String, Task> writeUsage = ArrayListMultimap.create();
+		
+		// Find Usages
+		for (Task t : tasks){
+			for (String r : t.sinkResources){
+				writeUsage.put(r, t);
+			}
+			for (String r : t.sourceResources){
+				readUsage.put(r, t);
+			}
+		}
+		
 		reportDir.mkdirs();
+		File reportTablesDir = new File(reportDir, "tables");
+		reportTablesDir.mkdirs();
 		VelocityEngine ve = new VelocityEngine();
 		ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
 		ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
@@ -129,22 +149,28 @@ public class CompileMojo extends AbstractMojo {
 		for (Resource r : resources.values()){
 			if (r instanceof HCatResource){
 				HCatResource resource = (HCatResource) r;
-				String fileName = "resource_" + resource.dbName + "." + resource.tableName + ".html";
+				String fileName = resource.dbName + "." + resource.tableName + ".html";
 				VelocityContext context = new VelocityContext();
 				context.put("table", r);
-				FileWriter writer = new FileWriter(new File(reportDir, fileName));
+				context.put("taskTree", tasksRoot);
+				context.put("tablesTree", tablesRoot);
+				context.put("baseDir", "../");
+				context.put("readUsages", readUsage.get(resource.getUniqueIdentifier()));
+				context.put("writeUsages", writeUsage.get(resource.getUniqueIdentifier()));
+				FileWriter writer = new FileWriter(new File(reportTablesDir, fileName));
 				tableTemplate.merge(context, writer);
 				writer.close();
 			}
 		}
 		
-		// Tasks
+		// TaskGraph
 		Template graphTemplate = ve.getTemplate("templates/taskGraph.vm");
 		VelocityContext context = new VelocityContext();
 		context.put("tasks", linkedTasks);
 		context.put("taskTree", tasksRoot);
 		context.put("tablesTree", tablesRoot);
-		FileWriter writer = new FileWriter(new File(reportDir, "tasks.html"));
+		context.put("baseDir", "");
+		FileWriter writer = new FileWriter(new File(reportDir, "index.html"));
 		graphTemplate.merge(context, writer);
 		writer.close();
 	}
@@ -228,13 +254,13 @@ public class CompileMojo extends AbstractMojo {
 						tableName);
 				List<FieldSchema> partitionFields = table.getPartitionKeys();
 				List<HCatColumn> columns = new ArrayList<>();
-				for (FieldSchema field : partitionFields) {
-					columns.add(new HCatColumn(field.getType(),
-							field.getName(), field.getComment(), true));
-				}
 				for (FieldSchema field : fields) {
 					columns.add(new HCatColumn(field.getType(),
 							field.getName(), field.getComment(), false));
+				}
+				for (FieldSchema field : partitionFields) {
+					columns.add(new HCatColumn(field.getType(),
+							field.getName(), field.getComment(), true));
 				}
 				tables.add(new HCatResource(dbName, tableName, table
 						.getParameters().get("comment"), columns));

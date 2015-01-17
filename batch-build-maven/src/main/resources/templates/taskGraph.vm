@@ -1,38 +1,14 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.rawgit.com/jonmiles/bootstrap-treeview/2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.css">
-    <link rel="stylesheet" href="http://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
-    <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
-    <script src="https://cdn.rawgit.com/jonmiles/bootstrap-treeview/2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.js"></script>
-    
-    <script src="https://cdn.rawgit.com/knsv/mermaid/0.3.2/dist/mermaid.full.js"></script>
-    <style>
-      .sidebar {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 1000;
-        display: block;
-        padding: 0px;
-        overflow-x: hidden;
-        overflow-y: auto; 
-        background-color: #f5f5f5;
-        border-right: 1px solid #eee;
-      }
-    </style>
-    
+    #parse("templates/headCommon.vm")
     <title>Tasks</title>
   </head>
   <body>
     <div class="container">
       <div class="row">
         <div class="col-sm-5 col-md-3 sidebar">
-          <div id="tree"></div>
+          #parse("templates/navBar.vm")
         </div>
         <div class="col-sm-7 col-sm-offset-5 col-md-9 col-md-offset-3 main">
           <h1 class="page-header">Tasks</h1>
@@ -48,37 +24,5 @@
         </div>
       </div>
     </div>
-    <script>
-      #macro(displayNode $node)
-            {
-              text: "$node"
-      #if ($node.children.size() > 0)
-              ,"nodes": [
-              #foreach ($child in $node.children)
-              #displayNode($child)
-              #if( $foreach.hasNext ), #end
-              #end
-              ],
-              icon: "icon ion-folder"
-      #else
-              ,icon: "icon ion-asterisk",
-              href: "#"
-      #end
-            }
-    #end
-    
-    
-      var tree = [
-        {
-          text: "Task Graph",
-          icon: "icon ion-network",
-          href: "#"
-        },
-        #displayNode($taskTree),
-        #displayNode($tablesTree)
-      ];
-
-      $('#tree').treeview({data: tree, enableLinks: true, highlightSelected: false});
-    </script>
   </body>
 </html>

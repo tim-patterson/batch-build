@@ -59,6 +59,7 @@ import batch_build.mojo.tasks.HiveTask;
 import batch_build.mojo.tasks.LinkedTask;
 import batch_build.mojo.tasks.PigTask;
 import batch_build.mojo.tasks.Task;
+import batch_build.mojo.utils.TreeNode;
 
 @Mojo(requiresProject = true, name = "compile", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE)
 public class CompileMojo extends AbstractMojo {
@@ -95,6 +96,28 @@ public class CompileMojo extends AbstractMojo {
 	
 	
 	private void generateReports() throws Exception {
+		// recreate tree structure for tasks
+		TreeNode<String> tasksRoot = new TreeNode<String>(null, "Tasks");
+		for (LinkedTask t : linkedTasks){
+			TreeNode<String> node = tasksRoot;
+			String[] pathComponents = t.task.name.split("/");
+			for (String pathComponent : pathComponents){
+				node = node.getOrCreateChild(pathComponent);
+			}
+			node.setItem(t.task.name);
+		}
+		
+		// create tree structure for tables
+		TreeNode<String> tablesRoot = new TreeNode<String>(null, "Tables");
+		for (Resource r : resources.values()){
+			if (r instanceof HCatResource){
+				HCatResource table = (HCatResource) r;
+				TreeNode<String> dbNode = tablesRoot.getOrCreateChild(table.dbName);
+				dbNode.addChild(new TreeNode<>(table.toString(), table.tableName));
+			}
+		}
+		tablesRoot.sortChildren(true);
+		
 		reportDir.mkdirs();
 		VelocityEngine ve = new VelocityEngine();
 		ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
@@ -119,6 +142,8 @@ public class CompileMojo extends AbstractMojo {
 		Template graphTemplate = ve.getTemplate("templates/taskGraph.vm");
 		VelocityContext context = new VelocityContext();
 		context.put("tasks", linkedTasks);
+		context.put("taskTree", tasksRoot);
+		context.put("tablesTree", tablesRoot);
 		FileWriter writer = new FileWriter(new File(reportDir, "tasks.html"));
 		graphTemplate.merge(context, writer);
 		writer.close();
@@ -225,7 +250,7 @@ public class CompileMojo extends AbstractMojo {
 			if (file.isDirectory()){
 				parseTasks(file);
 			} else if (file.isFile()){
-				String taskName = tasksDir.toPath().relativize(file.toPath()).toString();
+				String taskName = tasksDir.toPath().relativize(file.toPath()).toString().replace("\\", "/");
 				if (file.getName().endsWith(".pig")){
 					tasks.add(explainPigTask(taskName, file));
 				}else if (file.getName().endsWith(".hql")){

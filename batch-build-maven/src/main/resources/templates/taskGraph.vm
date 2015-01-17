@@ -49,30 +49,33 @@
       </div>
     </div>
     <script>
+      #macro(displayNode $node)
+            {
+              text: "$node"
+      #if ($node.children.size() > 0)
+              ,"nodes": [
+              #foreach ($child in $node.children)
+              #displayNode($child)
+              #if( $foreach.hasNext ), #end
+              #end
+              ],
+              icon: "icon ion-folder"
+      #else
+              ,icon: "icon ion-asterisk",
+              href: "#"
+      #end
+            }
+    #end
+    
+    
       var tree = [
         {
           text: "Task Graph",
           icon: "icon ion-network",
           href: "#"
         },
-        {
-          text: "Tasks",
-          icon: "icon ion-folder",
-          nodes: [
-            #foreach( $task in $tasks )
-            {
-              text: "$task.task.name",
-              icon: "icon ion-asterisk",
-              href: "#"
-            }
-            #if( $foreach.hasNext ), #end
-            #end
-          ]
-        },
-        {
-          text: "Tables",
-          icon: "icon ion-folder"
-        }
+        #displayNode($taskTree),
+        #displayNode($tablesTree)
       ];
 
       $('#tree').treeview({data: tree, enableLinks: true, highlightSelected: false});

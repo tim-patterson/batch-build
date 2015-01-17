@@ -24,6 +24,8 @@ import net.sf.corn.cps.CPScanner;
 import net.sf.corn.cps.ResourceFilter;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.hive.cli.CliDriver;
 import org.apache.hadoop.hive.cli.CliSessionState;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -51,11 +53,6 @@ import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
-
 import batch_build.mojo.resources.FileLocationResource;
 import batch_build.mojo.resources.HCatResource;
 import batch_build.mojo.resources.HCatResource.HCatColumn;
@@ -65,6 +62,9 @@ import batch_build.mojo.tasks.LinkedTask;
 import batch_build.mojo.tasks.PigTask;
 import batch_build.mojo.tasks.Task;
 import batch_build.mojo.utils.TreeNode;
+
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 
 @Mojo(requiresProject = true, name = "compile", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE)
 public class CompileMojo extends AbstractMojo {
@@ -109,7 +109,7 @@ public class CompileMojo extends AbstractMojo {
 			for (String pathComponent : pathComponents){
 				node = node.getOrCreateChild(pathComponent);
 			}
-			node.setItem(t.task.name);
+			node.setItem(UrlHelper.INSTANCE.urlFromTaskName(t.task.name));
 		}
 		
 		// create tree structure for tables
@@ -118,7 +118,7 @@ public class CompileMojo extends AbstractMojo {
 			if (r instanceof HCatResource){
 				HCatResource table = (HCatResource) r;
 				TreeNode<String> dbNode = tablesRoot.getOrCreateChild(table.dbName);
-				dbNode.addChild(new TreeNode<>("tables/" + table.dbName + "." + table.tableName + ".html", table.tableName));
+				dbNode.addChild(new TreeNode<>(UrlHelper.INSTANCE.urlFromResource(table), table.tableName));
 			}
 		}
 		tablesRoot.sortChildren(true);
@@ -139,6 +139,8 @@ public class CompileMojo extends AbstractMojo {
 		reportDir.mkdirs();
 		File reportTablesDir = new File(reportDir, "tables");
 		reportTablesDir.mkdirs();
+		File reportTasksDir = new File(reportDir, "tasks");
+		reportTasksDir.mkdirs();
 		VelocityEngine ve = new VelocityEngine();
 		ve.setProperty(RuntimeConstants.RESOURCE_LOADER, "classpath");
 		ve.setProperty("classpath.resource.loader.class", ClasspathResourceLoader.class.getName());
@@ -149,23 +151,56 @@ public class CompileMojo extends AbstractMojo {
 		for (Resource r : resources.values()){
 			if (r instanceof HCatResource){
 				HCatResource resource = (HCatResource) r;
-				String fileName = resource.dbName + "." + resource.tableName + ".html";
+				String fileName = resource.dbName + "/" + resource.tableName + ".html";
 				VelocityContext context = new VelocityContext();
+				context.put("urlHelper", UrlHelper.INSTANCE);
 				context.put("table", r);
 				context.put("taskTree", tasksRoot);
 				context.put("tablesTree", tablesRoot);
-				context.put("baseDir", "../");
+				context.put("baseDir", "../../");
 				context.put("readUsages", readUsage.get(resource.getUniqueIdentifier()));
 				context.put("writeUsages", writeUsage.get(resource.getUniqueIdentifier()));
-				FileWriter writer = new FileWriter(new File(reportTablesDir, fileName));
+				File file = new File(reportTablesDir, fileName);
+				file.getParentFile().mkdirs();
+				FileWriter writer = new FileWriter(file);
 				tableTemplate.merge(context, writer);
 				writer.close();
 			}
 		}
 		
+		// Tasks
+		Template taskTemplate = ve.getTemplate("templates/taskDoc.vm");
+		for (LinkedTask task : linkedTasks){
+			List<Resource> sinkResources = new ArrayList<>();
+			for (String resourceId : task.task.sinkResources){
+				sinkResources.add(resources.get(resourceId));
+			}
+			List<Resource> sourceResources = new ArrayList<>();
+			for (String resourceId : task.task.sourceResources){
+				sourceResources.add(resources.get(resourceId));
+			}
+			String fileName = task.task.name + ".html";
+			String baseDir = StringUtils.repeat("../", fileName.split("/").length);
+			VelocityContext context = new VelocityContext();
+			context.put("urlHelper", UrlHelper.INSTANCE);
+			context.put("task", task);
+			context.put("taskTree", tasksRoot);
+			context.put("tablesTree", tablesRoot);
+			context.put("baseDir", baseDir);
+			context.put("sourceResources", sourceResources);
+			context.put("sinkResources", sinkResources);
+			File htmlFile = new File(reportTasksDir, fileName);
+			htmlFile.getParentFile().mkdirs();
+			FileWriter writer = new FileWriter(htmlFile);
+			taskTemplate.merge(context, writer);
+			writer.close();
+			
+		}
+		
 		// TaskGraph
 		Template graphTemplate = ve.getTemplate("templates/taskGraph.vm");
 		VelocityContext context = new VelocityContext();
+		context.put("urlHelper", UrlHelper.INSTANCE);
 		context.put("tasks", linkedTasks);
 		context.put("taskTree", tasksRoot);
 		context.put("tablesTree", tablesRoot);
@@ -225,7 +260,7 @@ public class CompileMojo extends AbstractMojo {
 		CliDriver hiveCli = new CliDriver();
 		List<URL> tableUrls = CPScanner.scanResources(new ResourceFilter().packageName("tables.*").resourceName("*.hql"));
 		Set<String> dbsCreated = new HashSet<>();
-		
+		Map<String,String> tableNameToSource = new HashMap<>();
 		List<String> badFiles = new ArrayList<>();
 		for (URL url : tableUrls) {
 			String fileName = url.getFile();
@@ -237,9 +272,15 @@ public class CompileMojo extends AbstractMojo {
 			}
 			System.out.println("Running " + fileName);
 			SessionState.start(createNewSessionState());
+			HiveExplainHook.reset();
 			if (hiveCli.processReader(new BufferedReader(new InputStreamReader(url.openStream()))) != 0) {
 				badFiles.add(fileName);
 			}
+			String source = IOUtils.toString(url.openStream());
+			for (String tableName : HiveExplainHook.getTablesCreated()){
+				tableNameToSource.put(tableName, source);
+			}
+			
 		}
 		if (!badFiles.isEmpty()) {
 			throw new RuntimeException("Error creating tables in files "
@@ -262,8 +303,9 @@ public class CompileMojo extends AbstractMojo {
 					columns.add(new HCatColumn(field.getType(),
 							field.getName(), field.getComment(), true));
 				}
+				String source = tableNameToSource.get(dbName + "." + tableName);
 				tables.add(new HCatResource(dbName, tableName, table
-						.getParameters().get("comment"), columns));
+						.getParameters().get("comment"), source, columns));
 			}
 		}
 		return tables;
@@ -295,7 +337,7 @@ public class CompileMojo extends AbstractMojo {
 			throw new RuntimeException("Failed to explain hive query");
 		}
 		
-		return new HiveTask(taskName, HiveExplainHook.getSources(), HiveExplainHook.getSinks());
+		return new HiveTask(taskName, HiveExplainHook.getSources(), HiveExplainHook.getSinks(), FileUtils.readFileToString(hiveScript));
 	}
 	
 	private PigTask explainPigTask(String taskName, File pigScript) throws Throwable {
@@ -349,7 +391,7 @@ public class CompileMojo extends AbstractMojo {
 				sourceResources.add(resourceId);
 			}			
 			return new PigTask(taskName, sourceResources,
-					destResources);
+					destResources, FileUtils.readFileToString(pigScript));
 		} finally {
 			pig.shutdown();
 		}

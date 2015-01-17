@@ -15,7 +15,7 @@
           <div class="mermaid">
             graph LR
             #foreach( $task in $tasks )
-            ${tasks.indexOf($task)}(<a href="#">$task.task.name</a>)
+            ${tasks.indexOf($task)}(<a href="$baseDir$urlHelper.urlFromTaskName($task.task.name)">$task.task.name</a>)
             #foreach( $parentTask in $task.parents )
             ${tasks.indexOf($parentTask)} --> ${tasks.indexOf($task)}
             #end

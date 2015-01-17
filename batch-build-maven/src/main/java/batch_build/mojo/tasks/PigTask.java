@@ -5,8 +5,8 @@ import java.util.Set;
 public class PigTask extends Task {
 
 	public PigTask(String name, Set<String> sourceResources,
-			Set<String> sinkResources) {
-		super(name, sourceResources, sinkResources);
+			Set<String> sinkResources, String source) {
+		super(name, sourceResources, sinkResources, source);
 	}
 	
 	public String toString(){

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    #parse("templates/headCommon.vm")
+    <title>$task.task.name</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-5 col-md-3 sidebar">
+          #parse("templates/navBar.vm")
+        </div>
+        <div class="col-sm-7 col-sm-offset-5 col-md-9 col-md-offset-3 main">
+          <h1 class="page-header">Task $task.task.name</h1>
+          
+          <h3>depends on</h3>
+            <ul>
+              #foreach( $parentTask in $task.parents )
+              <li><a href="$baseDir$urlHelper.urlFromTaskName($parentTask.task.name)">$parentTask.task.name</a></li>
+              #end
+            </ul>
+            
+          <h3>resources referenced</h3>
+            <ul>
+              #foreach( $resource in $sourceResources )
+              <li><a href="$baseDir$urlHelper.urlFromResource($resource)">$resource</a> (read)</li>
+              #end
+            </ul>
+            <ul>
+              #foreach( $resource in $sinkResources )
+              <li><a href="$baseDir$urlHelper.urlFromResource($resource)">$resource</a> (write)</li>
+              #end
+            </ul>
+          <h3>source sql</h3>
+          <pre class="prettyprint lang-sql">
+$task.task.source
+          </pre>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
+

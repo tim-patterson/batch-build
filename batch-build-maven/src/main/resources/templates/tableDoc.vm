@@ -28,14 +28,18 @@
           <h3>usage</h3>
             <ul>
               #foreach( $task in $writeUsages )
-              <li><a href="">$task.name</a> (write)</li>
+              <li><a href="$baseDir$urlHelper.urlFromTaskName($task.name)">$task.name</a> (write)</li>
               #end
             </ul>
             <ul>
               #foreach( $task in $readUsages )
-              <li><a href="">$task.name</a> (read)</li>
+              <li><a href="$baseDir$urlHelper.urlFromTaskName($task.name)">$task.name</a> (read)</li>
               #end
             </ul>
+          <h3>source sql</h3>
+          <pre class="prettyprint lang-sql">
+$table.source
+          </pre>
         </div>
       </div>
     </div>

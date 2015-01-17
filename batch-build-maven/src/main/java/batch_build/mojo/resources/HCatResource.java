@@ -11,14 +11,16 @@ public class HCatResource extends Resource{
 	public final String dbName;
 	public final String tableName;
 	public final String description;
+	public final String source;
 	public final List<HCatColumn> columns;
 
 	
-	public HCatResource(String dbName, String tableName, String description,
+	public HCatResource(String dbName, String tableName, String description, String sourceSql,
 			List<HCatColumn> columns) {
 		this.dbName = dbName;
 		this.tableName = tableName;
 		this.description = description;
+		this.source = sourceSql;
 		this.columns = Collections.unmodifiableList(columns);
 	}
 

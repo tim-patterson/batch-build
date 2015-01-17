@@ -19,11 +19,13 @@ import org.apache.hadoop.hive.ql.plan.api.StageType;
 public class HiveExplainHook implements HiveSemanticAnalyzerHook {
 	
 	private static Set<String> sinks = new HashSet<>();
-	private static Set<String> sources= new HashSet<>();
+	private static Set<String> sources = new HashSet<>();
+	private static Set<String> tablesCreated = new HashSet<>();
 	
 	public static void reset(){
 		sinks = new HashSet<>();
 		sources = new HashSet<>();
+		tablesCreated = new HashSet<>();
 	}
 	
 
@@ -44,6 +46,7 @@ public class HiveExplainHook implements HiveSemanticAnalyzerHook {
 			if (createTableDesc !=null){
 				createTableDesc.setLocation(null);
 			}
+			tablesCreated.add(createTableDesc.getTableName());
 			return;
 		}
 		
@@ -65,6 +68,10 @@ public class HiveExplainHook implements HiveSemanticAnalyzerHook {
 	
 	public static Set<String> getSources(){
 		return sources;
+	}
+	
+	public static Set<String> getTablesCreated(){
+		return tablesCreated;
 	}
 
 }

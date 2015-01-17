@@ -1,17 +1,81 @@
+<!DOCTYPE html>
 <html>
   <head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.rawgit.com/jonmiles/bootstrap-treeview/2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.css">
+    <link rel="stylesheet" href="http://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+    <script src="https://cdn.rawgit.com/jonmiles/bootstrap-treeview/2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.js"></script>
+    
+    <script src="https://cdn.rawgit.com/knsv/mermaid/0.3.2/dist/mermaid.full.js"></script>
+    <style>
+      .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1000;
+        display: block;
+        padding: 0px;
+        overflow-x: hidden;
+        overflow-y: auto; 
+        background-color: #f5f5f5;
+        border-right: 1px solid #eee;
+      }
+    </style>
+    
     <title>Tasks</title>
-    <script type="text/javascript" src="https://cdn.rawgit.com/knsv/mermaid/0.3.2/dist/mermaid.full.js"></script>
   </head>
   <body>
-    <div class="mermaid">
-    graph LR
-    #foreach( $task in $tasks )
-    ${tasks.indexOf($task)}(<a href="#">$task.task.name</a>)
-    #foreach( $parentTask in $task.parents )
-    ${tasks.indexOf($parentTask)} --> ${tasks.indexOf($task)}
-    #end
-    #end
+    <div class="container">
+      <div class="row">
+        <div class="col-sm-5 col-md-3 sidebar">
+          <div id="tree"></div>
+        </div>
+        <div class="col-sm-7 col-sm-offset-5 col-md-9 col-md-offset-3 main">
+          <h1 class="page-header">Tasks</h1>
+          <div class="mermaid">
+            graph LR
+            #foreach( $task in $tasks )
+            ${tasks.indexOf($task)}(<a href="#">$task.task.name</a>)
+            #foreach( $parentTask in $task.parents )
+            ${tasks.indexOf($parentTask)} --> ${tasks.indexOf($task)}
+            #end
+            #end
+          </div>
+        </div>
+      </div>
     </div>
+    <script>
+      var tree = [
+        {
+          text: "Task Graph",
+          icon: "icon ion-network",
+          href: "#"
+        },
+        {
+          text: "Tasks",
+          icon: "icon ion-folder",
+          nodes: [
+            #foreach( $task in $tasks )
+            {
+              text: "$task.task.name",
+              icon: "icon ion-asterisk",
+              href: "#"
+            }
+            #if( $foreach.hasNext ), #end
+            #end
+          ]
+        },
+        {
+          text: "Tables",
+          icon: "icon ion-folder"
+        }
+      ];
+
+      $('#tree').treeview({data: tree, enableLinks: true, highlightSelected: false});
+    </script>
   </body>
 </html>

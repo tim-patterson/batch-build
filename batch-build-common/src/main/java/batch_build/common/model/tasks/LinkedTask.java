@@ -1,11 +1,17 @@
-package batch_build.mojo.tasks;
+package batch_build.common.model.tasks;
 
 import java.util.HashSet;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIdentityInfo;
+import com.fasterxml.jackson.annotation.ObjectIdGenerators;
+
+@JsonIdentityInfo(property="name", generator=ObjectIdGenerators.PropertyGenerator.class)
 public class LinkedTask {
-	public final Task task;
+	private Task task;
 	public Set<LinkedTask> parents = new HashSet<>();
+	
+	private LinkedTask(){}
 	
 	public LinkedTask(Task task){
 		this.task = task;
@@ -39,5 +45,13 @@ public class LinkedTask {
 	
 	public Task getTask(){
 		return task;
+	}
+	
+	public String getName(){
+		return task.getName();
+	}
+	
+	public void setName(String name){
+		// Just here to keep jackson happy, but the task itself should already contain its name
 	}
 }

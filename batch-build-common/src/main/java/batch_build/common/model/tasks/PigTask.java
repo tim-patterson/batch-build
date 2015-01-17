@@ -1,8 +1,10 @@
-package batch_build.mojo.tasks;
+package batch_build.common.model.tasks;
 
 import java.util.Set;
 
 public class PigTask extends Task {
+	
+	private PigTask(){}
 
 	public PigTask(String name, Set<String> sourceResources,
 			Set<String> sinkResources, String source) {
@@ -10,7 +12,7 @@ public class PigTask extends Task {
 	}
 	
 	public String toString(){
-		return "pig:" + name + " sources:" + sourceResources + " sinks:" + sinkResources;
+		return "pig:" + getName() + " sources:" + getSourceResources() + " sinks:" + getSinkResources();
 	}
 	
 }

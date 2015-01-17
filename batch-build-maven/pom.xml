@@ -18,6 +18,12 @@
 	</properties>
 
 	<dependencies>
+		<dependency>
+			<groupId>batchbuilder</groupId>
+			<artifactId>batch-build-common</artifactId>
+			<version>0.0.1-SNAPSHOT</version>
+		</dependency>
+
 		<!-- Maven deps -->
 		<dependency>
 			<groupId>org.apache.maven</groupId>

@@ -55,14 +55,15 @@ import org.apache.velocity.app.VelocityEngine;
 import org.apache.velocity.runtime.RuntimeConstants;
 import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
-import batch_build.mojo.resources.FileLocationResource;
-import batch_build.mojo.resources.HCatResource;
-import batch_build.mojo.resources.HCatResource.HCatColumn;
-import batch_build.mojo.resources.Resource;
-import batch_build.mojo.tasks.HiveTask;
-import batch_build.mojo.tasks.LinkedTask;
-import batch_build.mojo.tasks.PigTask;
-import batch_build.mojo.tasks.Task;
+import batch_build.common.model.BatchModel;
+import batch_build.common.model.resources.FileLocationResource;
+import batch_build.common.model.resources.HCatResource;
+import batch_build.common.model.resources.Resource;
+import batch_build.common.model.resources.HCatResource.HCatColumn;
+import batch_build.common.model.tasks.HiveTask;
+import batch_build.common.model.tasks.LinkedTask;
+import batch_build.common.model.tasks.PigTask;
+import batch_build.common.model.tasks.Task;
 import batch_build.mojo.utils.TreeNode;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -79,6 +80,9 @@ public class CompileMojo extends AbstractMojo {
 	@Parameter(defaultValue = "${project.build.directory}/docs", readonly = true, required = true)
 	private File reportDir;
 	
+	@Parameter(defaultValue = "${project.build.directory}/model.json", readonly = true, required = true)
+	private File modelFile;
+	
 	@Parameter(defaultValue = "${basedir}/tasks", readonly = true, required = true)
 	private File tasksDir;
 	
@@ -89,9 +93,9 @@ public class CompileMojo extends AbstractMojo {
 	private MavenProject project;
 
 	
-	private Map<String, Resource> resources;
-	private List<Task> tasks;
-	private List<LinkedTask> linkedTasks;
+	private BatchModel model;
+	
+	private List<Task> unlinkedTasks;
 
 	public void execute() throws MojoExecutionException {
 		try {
@@ -99,10 +103,11 @@ public class CompileMojo extends AbstractMojo {
 			clean();
 			setupClassLoader();
 			setupHadoop(tmpDir);
-			resources.putAll(resourcesToMap(createHiveTables()));
+			model.getResources().putAll(resourcesToMap(createHiveTables()));
 			parseTasks(tasksDir);
-			linkedTasks = optimizeDeps(tasks);
+			model.setTasks(optimizeDeps(unlinkedTasks));
 			generateReports();
+			model.writeModel(modelFile);
 		} catch (Throwable e) {
 			throw new MojoExecutionException("Problem running mojo", e);
 		}
@@ -117,22 +122,23 @@ public class CompileMojo extends AbstractMojo {
 	private void generateReports() throws Exception {
 		// recreate tree structure for tasks
 		TreeNode<String> tasksRoot = new TreeNode<String>(null, "Tasks");
-		for (LinkedTask t : linkedTasks){
+		for (LinkedTask t : model.getTasks()){
 			TreeNode<String> node = tasksRoot;
-			String[] pathComponents = t.task.name.split("/");
+			String taskName = t.getTask().getName();
+			String[] pathComponents = taskName.split("/");
 			for (String pathComponent : pathComponents){
 				node = node.getOrCreateChild(pathComponent);
 			}
-			node.setItem(UrlHelper.INSTANCE.urlFromTaskName(t.task.name));
+			node.setItem(UrlHelper.INSTANCE.urlFromTaskName(taskName));
 		}
 		
 		// create tree structure for tables
 		TreeNode<String> tablesRoot = new TreeNode<String>(null, "HCat Tables");
-		for (Resource r : resources.values()){
+		for (Resource r : model.getResources().values()){
 			if (r instanceof HCatResource){
 				HCatResource table = (HCatResource) r;
-				TreeNode<String> dbNode = tablesRoot.getOrCreateChild(table.dbName);
-				dbNode.addChild(new TreeNode<>(UrlHelper.INSTANCE.urlFromResource(table), table.tableName));
+				TreeNode<String> dbNode = tablesRoot.getOrCreateChild(table.getDbName());
+				dbNode.addChild(new TreeNode<>(UrlHelper.INSTANCE.urlFromResource(table), table.getTableName()));
 			}
 		}
 		tablesRoot.sortChildren(true);
@@ -141,11 +147,11 @@ public class CompileMojo extends AbstractMojo {
 		Multimap<String, Task> writeUsage = ArrayListMultimap.create();
 		
 		// Find Usages
-		for (Task t : tasks){
-			for (String r : t.sinkResources){
+		for (Task t : unlinkedTasks){
+			for (String r : t.getSinkResources()){
 				writeUsage.put(r, t);
 			}
-			for (String r : t.sourceResources){
+			for (String r : t.getSourceResources()){
 				readUsage.put(r, t);
 			}
 		}
@@ -162,10 +168,10 @@ public class CompileMojo extends AbstractMojo {
 		
 		// Tables
 		Template tableTemplate = ve.getTemplate("templates/tableDoc.vm");
-		for (Resource r : resources.values()){
+		for (Resource r : model.getResources().values()){
 			if (r instanceof HCatResource){
 				HCatResource resource = (HCatResource) r;
-				String fileName = resource.dbName + "/" + resource.tableName + ".html";
+				String fileName = resource.getDbName() + "/" + resource.getTableName() + ".html";
 				VelocityContext context = new VelocityContext();
 				context.put("urlHelper", UrlHelper.INSTANCE);
 				context.put("table", r);
@@ -184,16 +190,16 @@ public class CompileMojo extends AbstractMojo {
 		
 		// Tasks
 		Template taskTemplate = ve.getTemplate("templates/taskDoc.vm");
-		for (LinkedTask task : linkedTasks){
+		for (LinkedTask task : model.getTasks()){
 			List<Resource> sinkResources = new ArrayList<>();
-			for (String resourceId : task.task.sinkResources){
-				sinkResources.add(resources.get(resourceId));
+			for (String resourceId : task.getTask().getSinkResources()){
+				sinkResources.add(model.getResources().get(resourceId));
 			}
 			List<Resource> sourceResources = new ArrayList<>();
-			for (String resourceId : task.task.sourceResources){
-				sourceResources.add(resources.get(resourceId));
+			for (String resourceId : task.getTask().getSourceResources()){
+				sourceResources.add(model.getResources().get(resourceId));
 			}
-			String fileName = task.task.name + ".html";
+			String fileName = task.getTask().getName() + ".html";
 			String baseDir = StringUtils.repeat("../", fileName.split("/").length);
 			VelocityContext context = new VelocityContext();
 			context.put("urlHelper", UrlHelper.INSTANCE);
@@ -215,7 +221,7 @@ public class CompileMojo extends AbstractMojo {
 		Template graphTemplate = ve.getTemplate("templates/taskGraph.vm");
 		VelocityContext context = new VelocityContext();
 		context.put("urlHelper", UrlHelper.INSTANCE);
-		context.put("tasks", linkedTasks);
+		context.put("tasks", model.getTasks());
 		context.put("taskTree", tasksRoot);
 		context.put("tablesTree", tablesRoot);
 		context.put("baseDir", "");
@@ -226,8 +232,8 @@ public class CompileMojo extends AbstractMojo {
 
 
 	private void clean() throws IOException {
-		resources = new HashMap<>();
-		tasks = new ArrayList<>();
+		model = new  BatchModel();
+		unlinkedTasks = new ArrayList<>();
 		FileUtils.deleteDirectory(tmpDir);
 		FileUtils.deleteDirectory(reportDir);
 	}
@@ -337,9 +343,9 @@ public class CompileMojo extends AbstractMojo {
 			} else if (file.isFile()){
 				String taskName = tasksDir.toPath().relativize(file.toPath()).toString().replace("\\", "/");
 				if (file.getName().endsWith(".pig")){
-					tasks.add(explainPigTask(taskName, file));
+					unlinkedTasks.add(explainPigTask(taskName, file));
 				}else if (file.getName().endsWith(".hql")){
-					tasks.add(explainHiveTask(taskName, file));
+					unlinkedTasks.add(explainHiveTask(taskName, file));
 				}
 			}
 		}
@@ -372,7 +378,7 @@ public class CompileMojo extends AbstractMojo {
 				case "org.apache.pig.builtin.PigStorage":
 					FileLocationResource resource = new FileLocationResource(
 							sinks.get(i));
-					resources.put(resource.getUniqueIdentifier(), resource);
+					model.getResources().put(resource.getUniqueIdentifier(), resource);
 					resourceId = resource.getUniqueIdentifier();
 					break;
 				case "org.apache.hive.hcatalog.pig.HCatStorer":
@@ -382,7 +388,7 @@ public class CompileMojo extends AbstractMojo {
 					throw new RuntimeException("Unknown pig storage:"
 							+ storeFuncts.get(i));
 				}
-				assert resources.containsKey(resourceId);
+				assert model.getResources().containsKey(resourceId);
 				destResources.add(resourceId);
 			}
 
@@ -394,7 +400,7 @@ public class CompileMojo extends AbstractMojo {
 				case "org.apache.pig.builtin.PigStorage":
 					FileLocationResource resource = new FileLocationResource(
 							sources.get(i));
-					resources.put(resource.getUniqueIdentifier(), resource);
+					model.getResources().put(resource.getUniqueIdentifier(), resource);
 					resourceId = resource.getUniqueIdentifier();
 					break;
 				case "org.apache.hive.hcatalog.pig.HCatLoader":
@@ -404,7 +410,7 @@ public class CompileMojo extends AbstractMojo {
 					throw new RuntimeException("Unknown pig loader:"
 							+ loadFuncts.get(i));
 				}
-				assert resources.containsKey(resourceId);
+				assert model.getResources().containsKey(resourceId);
 				sourceResources.add(resourceId);
 			}			
 			return new PigTask(taskName, sourceResources,
@@ -425,21 +431,21 @@ public class CompileMojo extends AbstractMojo {
 		Map<String, Set<LinkedTask>> upstreamReads = new HashMap<>();
 		Map<String, LinkedTask> upstreamWrites = new HashMap<>();
 		// Populate reads map with empty sets
-		for (String resource : resources.keySet()){
+		for (String resource : model.getResources().keySet()){
 			upstreamReads.put(resource, new HashSet<LinkedTask>());
 		}
 		
 		// First pass at calculating deps
 		for (Task task : tasks){
 			LinkedTask lTask = new LinkedTask(task);
-			for(String resource : task.sourceResources){
+			for(String resource : task.getSourceResources()){
 				LinkedTask upstreamWrite = upstreamWrites.get(resource);
 				if (upstreamWrite !=null){
 					lTask.parents.add(upstreamWrite);
 				}
 			}
 			
-			for(String resource : task.sinkResources){
+			for(String resource : task.getSinkResources()){
 				LinkedTask upstreamWrite = upstreamWrites.get(resource);
 				if (upstreamWrite !=null){
 					lTask.parents.add(upstreamWrite);
@@ -448,10 +454,10 @@ public class CompileMojo extends AbstractMojo {
 			}
 			
 			// Setup for next task
-			for (String resource : task.sourceResources){
+			for (String resource : task.getSourceResources()){
 				upstreamReads.get(resource).add(lTask);
 			}
-			for(String resource : task.sinkResources){
+			for(String resource : task.getSinkResources()){
 				// We can mark this as the upstream write for the following tasks
 				// Reads can be cleared at this stage as writes trump reads
 				upstreamWrites.put(resource, lTask);

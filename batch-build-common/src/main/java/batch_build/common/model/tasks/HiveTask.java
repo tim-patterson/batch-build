@@ -1,8 +1,10 @@
-package batch_build.mojo.tasks;
+package batch_build.common.model.tasks;
 
 import java.util.Set;
 
 public class HiveTask extends Task {
+	
+	private HiveTask(){}
 
 	public HiveTask(String name, Set<String> sourceResources,
 			Set<String> sinkResources, String source) {
@@ -10,7 +12,7 @@ public class HiveTask extends Task {
 	}
 	
 	public String toString(){
-		return "hive:" + name + " sources:" + sourceResources + " sinks:" + sinkResources;
+		return "hive:" + getName() + " sources:" + getSourceResources() + " sinks:" + getSinkResources();
 	}
 	
 }

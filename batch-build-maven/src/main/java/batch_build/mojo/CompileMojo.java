@@ -310,9 +310,6 @@ public class CompileMojo extends AbstractMojo {
 	 * tasks that read resources should depend on tasks before them that write into the resource
 	 */
 	private List<LinkedTask> optimizeDeps(List<Task> tasks){
-		for (Task t : tasks){
-			System.out.println(t);
-		}
 		List<LinkedTask> linkedTasks = new ArrayList<>();
 		// Tracking of resource -> reads and writes
 		Map<String, Set<LinkedTask>> upstreamReads = new HashMap<>();

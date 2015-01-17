@@ -37,12 +37,14 @@ import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.hive.metastore.api.Table;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.apache.hive.hcatalog.common.HCatUtil;
+import org.apache.maven.artifact.DependencyResolutionRequiredException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.project.MavenProject;
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
 import org.apache.pig.newplan.logical.relational.LogicalPlanData;
@@ -69,7 +71,6 @@ import com.google.common.collect.Multimap;
 @Mojo(requiresProject = true, name = "compile", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE)
 public class CompileMojo extends AbstractMojo {
 
-	@Parameter(defaultValue = "${project.compileClasspathElements}", readonly = true, required = true)
 	private List<String> classpathElements;
 
 	@Parameter(defaultValue = "${project.build.directory}/tmp", readonly = true, required = true)
@@ -78,8 +79,15 @@ public class CompileMojo extends AbstractMojo {
 	@Parameter(defaultValue = "${project.build.directory}/docs", readonly = true, required = true)
 	private File reportDir;
 	
-	@Parameter(defaultValue = "${project.build.resources[0].directory}/tasks", readonly = true, required = true)
+	@Parameter(defaultValue = "${basedir}/tasks", readonly = true, required = true)
 	private File tasksDir;
+	
+	@Parameter(defaultValue = "${basedir}/tables", readonly = true, required = true)
+	private File tablesDir;
+	
+	@Parameter(defaultValue = "${project}", required=true)
+	private MavenProject project;
+
 	
 	private Map<String, Resource> resources;
 	private List<Task> tasks;
@@ -87,6 +95,7 @@ public class CompileMojo extends AbstractMojo {
 
 	public void execute() throws MojoExecutionException {
 		try {
+			setupMavenResources();
 			clean();
 			setupClassLoader();
 			setupHadoop(tmpDir);
@@ -99,6 +108,11 @@ public class CompileMojo extends AbstractMojo {
 		}
 	}
 	
+	private void setupMavenResources() throws DependencyResolutionRequiredException, IOException{
+		classpathElements = project.getCompileClasspathElements();
+		FileUtils.copyDirectory(tasksDir, new File(project.getBuild().getOutputDirectory(), "tasks"));
+		FileUtils.copyDirectory(tablesDir, new File(project.getBuild().getOutputDirectory(), "tables"));
+	}
 	
 	private void generateReports() throws Exception {
 		// recreate tree structure for tasks
@@ -313,6 +327,9 @@ public class CompileMojo extends AbstractMojo {
 	
 	private void parseTasks(File dir) throws Throwable{
 		File[] files = dir.listFiles();
+		if (files == null){
+			return;
+		}
 		Arrays.sort(files);
 		for (File file : files){
 			if (file.isDirectory()){

@@ -38,6 +38,7 @@ $task.task.source
         </div>
       </div>
     </div>
+    #parse("templates/footerCommon.vm")
   </body>
 </html>
 

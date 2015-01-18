@@ -9,6 +9,7 @@
 		<module>batch-build-common</module>
 		<module>batch-build-maven</module>
 		<module>batch-build-sample</module>
+		<module>batch-build-azkaban</module>
 	</modules>
 
 	<properties>

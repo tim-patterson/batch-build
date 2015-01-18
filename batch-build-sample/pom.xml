@@ -21,6 +21,17 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>batchbuilder</groupId>
+				<artifactId>batch-build-azkaban</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>package</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 </project>

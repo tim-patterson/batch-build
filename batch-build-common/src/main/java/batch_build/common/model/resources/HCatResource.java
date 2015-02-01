@@ -1,14 +1,11 @@
 package batch_build.common.model.resources;
 
-import java.beans.Transient;
 import java.util.Collections;
 import java.util.List;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import lombok.Getter;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Getter
 public class HCatResource extends Resource{

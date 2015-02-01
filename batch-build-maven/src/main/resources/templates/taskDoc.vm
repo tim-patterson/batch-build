@@ -12,13 +12,14 @@
         </div>
         <div class="col-sm-7 col-sm-offset-5 col-md-9 col-md-offset-3 main">
           <h1 class="page-header">Task $task.task.name</h1>
-          
+          #if( $task.parents.size > 0) 
           <h3>depends on</h3>
             <ul>
               #foreach( $parentTask in $task.parents )
               <li><a href="$baseDir$urlHelper.urlFromTaskName($parentTask.task.name)">$parentTask.task.name</a></li>
               #end
             </ul>
+          #end
             
           <h3>resources referenced</h3>
             <ul>

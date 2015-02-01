@@ -12,8 +12,10 @@
         </div>
         <div class="col-sm-7 col-sm-offset-5 col-md-9 col-md-offset-3 main">
           <h1 class="page-header">HCat Table - ${table.dbName}.${table.tableName}</h1>
+          #if($table.description)
           <h3>description</h3>
           <p>$table.description</p>
+          #end
           <h3>columns</h3>
           <table class="table table-bordered table-hover">
             <thead>
@@ -21,7 +23,7 @@
             </thead>
             <tbody>
               #foreach( $column in $table.columns )
-              <tr #if($column.isPartitionKey())class="info" #end><td>$column.name</td><td>$column.type</td><td>$column.description</td></tr>
+              <tr #if($column.isPartitionKey())class="info" #end><td>$column.name</td><td>$column.type</td><td>#if($column.description)$column.description #end</td></tr>
               #end
             </tbody>
           </table>

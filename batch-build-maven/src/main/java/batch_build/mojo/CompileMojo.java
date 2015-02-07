@@ -492,6 +492,7 @@ public class CompileMojo extends AbstractMojo {
 	private static CliSessionState createNewSessionState() {
 		CliSessionState ss = new CliSessionState(new HiveConf(
 				CompileMojo.class));
+		ss.getConf().set("batch_id", "1000");
 		ss.err = System.err;
 		ss.out = System.err;
 		ss.childErr = System.err;

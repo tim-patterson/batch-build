@@ -50,7 +50,6 @@ public class HiveExplainHook implements HiveSemanticAnalyzerHook {
 			return;
 		}
 		
-		
 		for(ReadEntity readEntity : context.getInputs()){
 			sources.add("hcat:" + readEntity.getTable().getDbName() + "." + readEntity.getTable());
 		}

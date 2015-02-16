@@ -13,7 +13,7 @@
 		<maven.api.version>2.0</maven.api.version>
 		<maven.version>3.3</maven.version>
 		<hadoop.version>2.6.0</hadoop.version>
-		<hive.version>0.14.0</hive.version>
+		<hive.version>0.12.0</hive.version>
 		<pig.version>0.14.0</pig.version>
 	</properties>
 
@@ -83,21 +83,26 @@
 		</dependency>
 		<dependency>
 			<groupId>org.apache.hive.hcatalog</groupId>
-			<artifactId>hive-hcatalog-core</artifactId>
+			<artifactId>hcatalog-core</artifactId>
 			<version>${hive.version}</version>
+			<exclusions>
+				<exclusion>
+					<artifactId>calcite-avatica</artifactId>
+					<groupId>org.apache.calcite</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>calcite-core</artifactId>
+					<groupId>org.apache.calcite</groupId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<!-- Pig Deps -->
-		<dependency>
-			<groupId>org.apache.pig</groupId>
-			<artifactId>pig</artifactId>
-			<version>${pig.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.hive.hcatalog</groupId>
-			<artifactId>hive-hcatalog-pig-adapter</artifactId>
-			<version>${hive.version}</version>
-		</dependency>
+		<!-- dependency> <groupId>org.apache.pig</groupId> <artifactId>pig</artifactId> 
+			<version>${pig.version}</version> </dependency> <dependency> <groupId>org.apache.hive.hcatalog</groupId> 
+			<artifactId>hive-hcatalog-pig-adapter</artifactId> <version>0.14.0</version> 
+			</dependency> <dependency> <groupId>joda-time</groupId> <artifactId>joda-time</artifactId> 
+			<version>2.7</version> </dependency -->
 
 		<!-- Misc Deps -->
 		<dependency>

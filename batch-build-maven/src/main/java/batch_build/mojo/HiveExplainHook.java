@@ -48,6 +48,8 @@ public class HiveExplainHook implements HiveSemanticAnalyzerHook {
 			}
 			tablesCreated.add(createTableDesc.getTableName());
 			return;
+		}else if (rootTasks.get(0).getType() == StageType.FUNC){
+			return;
 		}
 		
 		for(ReadEntity readEntity : context.getInputs()){

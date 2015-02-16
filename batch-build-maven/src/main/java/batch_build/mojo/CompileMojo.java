@@ -45,9 +45,6 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.apache.maven.project.MavenProject;
-import org.apache.pig.ExecType;
-import org.apache.pig.PigServer;
-import org.apache.pig.newplan.logical.relational.LogicalPlanData;
 import org.apache.thrift.TException;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
@@ -243,6 +240,11 @@ public class CompileMojo extends AbstractMojo {
 		// Dirty hack to prevent against class not found error caused by mavens classloaders
 		// being shutdown before the shutdownhooks have been run
 		Class.forName("org.apache.hadoop.util.ShutdownHookManager$2");
+		// These are only for hive/pig 0.12
+		Class.forName("com.google.common.cache.LocalCache$Values");
+		Class.forName("com.google.common.cache.LocalCache$ValueIterator");
+		Class.forName("com.google.common.cache.LocalCache$WriteThroughEntry");
+		
 		URL[] urls = new URL[classpathElements.size()];
 		for (int i = 0; i < classpathElements.size(); i++) {
 			urls[i] = new File(classpathElements.get(i)).toURI().toURL();
@@ -343,7 +345,7 @@ public class CompileMojo extends AbstractMojo {
 			} else if (file.isFile()){
 				String taskName = tasksDir.toPath().relativize(file.toPath()).toString().replace("\\", "/");
 				if (file.getName().endsWith(".pig")){
-					unlinkedTasks.add(explainPigTask(taskName, file));
+					//unlinkedTasks.add(explainPigTask(taskName, file));
 				}else if (file.getName().endsWith(".hql")){
 					unlinkedTasks.add(explainHiveTask(taskName, file));
 				}
@@ -363,62 +365,62 @@ public class CompileMojo extends AbstractMojo {
 		return new HiveTask(taskName, HiveExplainHook.getSources(), HiveExplainHook.getSinks(), FileUtils.readFileToString(hiveScript));
 	}
 	
-	private PigTask explainPigTask(String taskName, File pigScript) throws Throwable {
-		System.out.println("Explaining " + taskName);
-		PigServer pig = new PigServer(ExecType.LOCAL);
-		try {
-			pig.registerQuery(FileUtils.readFileToString(pigScript));
-			LogicalPlanData logicalPlanData = pig.getLogicalPlanData();
-			List<String> sinks = logicalPlanData.getSinks();
-			List<String> storeFuncts = logicalPlanData.getStoreFuncs();
-			Set<String> destResources = new HashSet<>();
-			String resourceId;
-			for (int i = 0; i < logicalPlanData.getNumSinks(); i++) {
-				switch (storeFuncts.get(i)) {
-				case "org.apache.pig.builtin.PigStorage":
-					FileLocationResource resource = new FileLocationResource(
-							sinks.get(i));
-					model.getResources().put(resource.getUniqueIdentifier(), resource);
-					resourceId = resource.getUniqueIdentifier();
-					break;
-				case "org.apache.hive.hcatalog.pig.HCatStorer":
-					resourceId = "hcat:" + sinks.get(i);
-					break;
-				default:
-					throw new RuntimeException("Unknown pig storage:"
-							+ storeFuncts.get(i));
-				}
-				assert model.getResources().containsKey(resourceId);
-				destResources.add(resourceId);
-			}
-
-			List<String> sources = logicalPlanData.getSources();
-			List<String> loadFuncts = logicalPlanData.getLoadFuncs();
-			Set<String> sourceResources = new HashSet<>();
-			for (int i = 0; i < logicalPlanData.getNumSources(); i++) {
-				switch (loadFuncts.get(i)) {
-				case "org.apache.pig.builtin.PigStorage":
-					FileLocationResource resource = new FileLocationResource(
-							sources.get(i));
-					model.getResources().put(resource.getUniqueIdentifier(), resource);
-					resourceId = resource.getUniqueIdentifier();
-					break;
-				case "org.apache.hive.hcatalog.pig.HCatLoader":
-					resourceId = "hcat:" + sources.get(i);
-					break;
-				default:
-					throw new RuntimeException("Unknown pig loader:"
-							+ loadFuncts.get(i));
-				}
-				assert model.getResources().containsKey(resourceId);
-				sourceResources.add(resourceId);
-			}			
-			return new PigTask(taskName, sourceResources,
-					destResources, FileUtils.readFileToString(pigScript));
-		} finally {
-			pig.shutdown();
-		}
-	}
+//	private PigTask explainPigTask(String taskName, File pigScript) throws Throwable {
+//		System.out.println("Explaining " + taskName);
+//		PigServer pig = new PigServer(ExecType.LOCAL);
+//		try {
+//			pig.registerQuery(FileUtils.readFileToString(pigScript));
+//			LogicalPlanData logicalPlanData = pig.getLogicalPlanData();
+//			List<String> sinks = logicalPlanData.getSinks();
+//			List<String> storeFuncts = logicalPlanData.getStoreFuncs();
+//			Set<String> destResources = new HashSet<>();
+//			String resourceId;
+//			for (int i = 0; i < logicalPlanData.getSinks().size(); i++) {
+//				switch (storeFuncts.get(i)) {
+//				case "org.apache.pig.builtin.PigStorage":
+//					FileLocationResource resource = new FileLocationResource(
+//							sinks.get(i));
+//					model.getResources().put(resource.getUniqueIdentifier(), resource);
+//					resourceId = resource.getUniqueIdentifier();
+//					break;
+//				case "org.apache.hive.hcatalog.pig.HCatStorer":
+//					resourceId = "hcat:" + sinks.get(i);
+//					break;
+//				default:
+//					throw new RuntimeException("Unknown pig storage:"
+//							+ storeFuncts.get(i));
+//				}
+//				assert model.getResources().containsKey(resourceId);
+//				destResources.add(resourceId);
+//			}
+//
+//			List<String> sources = logicalPlanData.getSources();
+//			List<String> loadFuncts = logicalPlanData.getLoadFuncs();
+//			Set<String> sourceResources = new HashSet<>();
+//			for (int i = 0; i < logicalPlanData.getSources().size(); i++) {
+//				switch (loadFuncts.get(i)) {
+//				case "org.apache.pig.builtin.PigStorage":
+//					FileLocationResource resource = new FileLocationResource(
+//							sources.get(i));
+//					model.getResources().put(resource.getUniqueIdentifier(), resource);
+//					resourceId = resource.getUniqueIdentifier();
+//					break;
+//				case "org.apache.hive.hcatalog.pig.HCatLoader":
+//					resourceId = "hcat:" + sources.get(i);
+//					break;
+//				default:
+//					throw new RuntimeException("Unknown pig loader:"
+//							+ loadFuncts.get(i));
+//				}
+//				assert model.getResources().containsKey(resourceId);
+//				sourceResources.add(resourceId);
+//			}			
+//			return new PigTask(taskName, sourceResources,
+//					destResources, FileUtils.readFileToString(pigScript));
+//		} finally {
+//			pig.shutdown();
+//		}
+//	}
 
 	/**
 	 * Work out the best dependencies between the tasks.

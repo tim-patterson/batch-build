@@ -1,10 +1,10 @@
     <meta charset="utf-8">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdn.rawgit.com/jonmiles/bootstrap-treeview/2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jonmiles/bootstrap-treeview@2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.css">
     <link rel="stylesheet" href="http://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
     <script src="https://code.jquery.com/jquery-1.11.2.min.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
-    <script src="https://cdn.rawgit.com/jonmiles/bootstrap-treeview/2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/jonmiles/bootstrap-treeview@2f30b62cfb783790666e402925b7bef717082225/dist/bootstrap-treeview.min.js"></script>
     <style>
       .sidebar {
         position: fixed;
